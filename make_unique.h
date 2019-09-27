@@ -1,6 +1,6 @@
 #include <memory>
 #include <inttypes.h>
-#include <thread>
+#include <functional>
 
 // 为定义的模板类，编译期显示推导错误
 // template<typename T>
@@ -43,21 +43,6 @@ namespace std
     using add_lvalue_reference_t = typename add_lvalue_reference<T>::type;
 } // namespace std
 
-// c++11实现非成员版cbegin()
-template <class C>
-auto cbegin(const C &c) -> decltype(std::begin(c))
-{
-    return std::begin(c)
-}
-
-//C++14 lambda记录任意函数的执行时间
-auto timeFuncInvocation =
-    [](auto &&func, auto &&... params) { // c++14
-        //...... 计时器启动;
-        std::forward<decltype(func)>(func)(
-            std::forward<decltype(params)>(params)...);
-        //...... 计时器停止并记录流逝的时间;
-    };
 
 class Person {
 public:
@@ -79,49 +64,3 @@ public:
     explicit Person(T&& n);
 };
 
-class PolyWidget {
-public:
-  template<typename T>
-  void operator()(const T& param);
-
-  //...
-};
-
-
-PolyWidget pw;
-auto boundPW = std::bind(pw, _1);
-
-//可接受任何类型的实参
-boundPW(123);
-boundPW(nullptr);
-boundPW("hello");
-
-
-class ThreadRAII {
-public:
-    enum class DtorAction { join, detach };
-    // 右值thread，移动接管
-    ThreadRAII(std::thread&& t, DtorAction a)
-    : act(a), t(std::move(t)) {}
-
-    // 确保在thread析构前调用join/detach
-    ~ThreadRAII() {
-        if (t.joinable()) {
-            if (act == DtorAction::join) {
-                t.join()
-            } else {
-                t.detach()
-            }
-        }
-    }
-
-    //支持移动操作
-    ThreadRAII(ThreadRAII&&) = default;
-    ThreadRAII& operator=(ThreadRAII&&) = default;
-
-    std::thread& get() { return t; }
-
-private:
-    DtorAction act;
-    std::thread t;  //thread最后一个声明，确保依赖已初始化
-};
